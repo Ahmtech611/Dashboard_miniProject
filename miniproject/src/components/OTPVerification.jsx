@@ -1,20 +1,22 @@
 import { useState, useEffect } from 'react'
 import '../styles/OTPVerification.css'
 
-// ─── Your EmailJS Credentials ─────────────────────────────────────────────────
+// EmailJS Credentials :
 const EMAILJS_SERVICE_ID  = 'service_fty9fq9'
 const EMAILJS_TEMPLATE_ID = 'template_tm2r2oc'
 const EMAILJS_PUBLIC_KEY  = 'iOD-jraZY0hABR6tC'
-// ─────────────────────────────────────────────────────────────────────────────
 
+// Next we set mapping or setting to_email and passcode in the emailJS templete. 
+//maps to {{to_email}} in EmailJS template
+// maps to {{passcode}} in EmailJS template
 async function sendOTPEmail(toEmail, otpCode) {
   const payload = {
     service_id:  EMAILJS_SERVICE_ID,
     template_id: EMAILJS_TEMPLATE_ID,
     user_id:     EMAILJS_PUBLIC_KEY,
     template_params: {
-      to_email: toEmail,   // maps to {{to_email}} in EmailJS template
-      passcode: otpCode,   // maps to {{passcode}} in EmailJS template
+      to_email: toEmail,   
+      passcode: otpCode,   
     },
   }
 
@@ -45,7 +47,7 @@ export default function OTPVerification({ onSuccess, onCancel, action }) {
   const [sending, setSending]           = useState(false)
   const [sendStatus, setSendStatus]     = useState('')
 
-  // Countdown timer
+  // Countdown timer :
   useEffect(() => {
     if (timer <= 0) return
     const id = setInterval(() => setTimer(t => t - 1), 1000)
@@ -126,7 +128,7 @@ export default function OTPVerification({ onSuccess, onCancel, action }) {
           </p>
         </div>
 
-        {/* Step 1 – Enter email */}
+        {/*Enter email : */}
         {step === 'email' && (
           <div className="otp-step">
             <p className="info-text">
@@ -168,7 +170,7 @@ export default function OTPVerification({ onSuccess, onCancel, action }) {
           </div>
         )}
 
-        {/* Step 2 – Enter OTP */}
+        {/*Enter OTP : */}
         {step === 'otp' && (
           <div className="otp-step">
             <p className="info-text">

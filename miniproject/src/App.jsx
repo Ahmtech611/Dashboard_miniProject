@@ -11,7 +11,7 @@ function App() {
   })
   const [editingId, setEditingId] = useState(null)
 
-  // Save formData to localStorage whenever it changes
+  // Save formData to localStorage whenever it updates(refresh the webpage)
   useEffect(() => {
     localStorage.setItem('formData', JSON.stringify(formData))
   }, [formData])
