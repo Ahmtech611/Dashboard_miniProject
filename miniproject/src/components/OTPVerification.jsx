@@ -1,113 +1,165 @@
 import { useState, useEffect } from 'react'
 import '../styles/OTPVerification.css'
 
+// ─── Your EmailJS Credentials ─────────────────────────────────────────────────
+const EMAILJS_SERVICE_ID  = 'service_fty9fq9'
+const EMAILJS_TEMPLATE_ID = 'template_tm2r2oc'
+const EMAILJS_PUBLIC_KEY  = 'iOD-jraZY0hABR6tC'
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function sendOTPEmail(toEmail, otpCode) {
+  const payload = {
+    service_id:  EMAILJS_SERVICE_ID,
+    template_id: EMAILJS_TEMPLATE_ID,
+    user_id:     EMAILJS_PUBLIC_KEY,
+    template_params: {
+      to_email: toEmail,   // maps to {{to_email}} in EmailJS template
+      passcode: otpCode,   // maps to {{passcode}} in EmailJS template
+    },
+  }
+
+  const res = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(payload),
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`EmailJS error ${res.status}: ${text}`)
+  }
+}
+
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString()
+}
+
 export default function OTPVerification({ onSuccess, onCancel, action }) {
-  const [otp, setOtp] = useState('')
+  const [step, setStep]                 = useState('email')  // 'email' | 'otp'
+  const [email, setEmail]               = useState('')
+  const [emailError, setEmailError]     = useState('')
+  const [otp, setOtp]                   = useState('')
   const [generatedOTP, setGeneratedOTP] = useState('')
-  const [otpSent, setOtpSent] = useState(false)
-  const [timer, setTimer] = useState(0)
-  const [error, setError] = useState('')
+  const [timer, setTimer]               = useState(0)
+  const [otpError, setOtpError]         = useState('')
+  const [sending, setSending]           = useState(false)
+  const [sendStatus, setSendStatus]     = useState('')
 
+  // Countdown timer
   useEffect(() => {
-    // Generate OTP when component mounts
-    const newOTP = Math.floor(100000 + Math.random() * 900000).toString()
-    setGeneratedOTP(newOTP)
-    console.log('Generated OTP:', newOTP) // For demo purposes
-  }, [])
+    if (timer <= 0) return
+    const id = setInterval(() => setTimer(t => t - 1), 1000)
+    return () => clearInterval(id)
+  }, [timer])
 
-  useEffect(() => {
-    let interval
-    if (otpSent && timer > 0) {
-      interval = setInterval(() => {
-        setTimer(timer - 1)
-      }, 1000)
+  const validateEmail = (val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)
+
+  const handleSendOTP = async () => {
+    if (!validateEmail(email)) {
+      setEmailError('Please enter a valid email address.')
+      return
     }
-    return () => clearInterval(interval)
-  }, [otpSent, timer])
+    setEmailError('')
+    setSending(true)
+    setSendStatus('')
 
-  const handleSendOTP = () => {
-    setOtpSent(true)
-    setTimer(60)
-    setError('')
-    alert(`OTP sent! (Demo: ${generatedOTP}) - Check console for OTP`)
+    const code = generateOTP()
+    setGeneratedOTP(code)
+
+    try {
+      await sendOTPEmail(email, code)
+      setSendStatus('success')
+      setStep('otp')
+      setTimer(60)
+    } catch (err) {
+      console.error(err)
+      setSendStatus('error')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const handleResendOTP = async () => {
+    setSending(true)
+    setSendStatus('')
+    const code = generateOTP()
+    setGeneratedOTP(code)
+    setOtp('')
+    setOtpError('')
+
+    try {
+      await sendOTPEmail(email, code)
+      setSendStatus('success')
+      setTimer(60)
+    } catch (err) {
+      console.error(err)
+      setSendStatus('error')
+    } finally {
+      setSending(false)
+    }
   }
 
   const handleVerifyOTP = () => {
     if (!otp) {
-      setError('Please enter the OTP')
+      setOtpError('Please enter the OTP.')
       return
     }
-
     if (otp === generatedOTP) {
-      setError('')
+      setOtpError('')
       onSuccess()
     } else {
-      setError('Invalid OTP. Please try again.')
+      setOtpError('Incorrect OTP. Please try again.')
     }
-  }
-
-  const handleResendOTP = () => {
-    const newOTP = Math.floor(100000 + Math.random() * 900000).toString()
-    setGeneratedOTP(newOTP)
-    console.log('New OTP:', newOTP)
-    setOtp('')
-    setOtpSent(true)
-    setTimer(60)
-    setError('')
-    alert(`OTP resent! (Demo: ${newOTP}) - Check console for OTP`)
   }
 
   return (
     <div className="otp-verification">
       <div className="otp-container">
+
+        {/* Header */}
         <div className="otp-header">
-          <h1>🔐 OTP Verification Required</h1>
+          <h1>🔐 OTP Verification</h1>
           <p>
-            {action === 'edit' ? 'To edit this form, please verify with OTP' : 'To delete this form, please verify with OTP'}
+            {action === 'edit'
+              ? 'Verify your identity to edit this record.'
+              : 'Verify your identity to delete this record.'}
           </p>
         </div>
 
-        {!otpSent ? (
+        {/* Step 1 – Enter email */}
+        {step === 'email' && (
           <div className="otp-step">
-            <p className="info-text">Click the button below to receive OTP</p>
-            <button onClick={handleSendOTP} className="btn-primary">
-              📧 Send OTP
-            </button>
-          </div>
-        ) : (
-          <div className="otp-step">
+            <p className="info-text">
+              Enter your email address and we'll send a one-time code.
+            </p>
+
             <div className="form-group">
-              <label htmlFor="otp">Enter OTP</label>
+              <label htmlFor="otp-email">Email address</label>
               <input
-                type="text"
-                id="otp"
-                maxLength="6"
-                placeholder="000000"
-                value={otp}
-                onChange={(e) => {
-                  setOtp(e.target.value.replace(/\D/g, ''))
-                  setError('')
-                }}
-                className={error ? 'input-error' : ''}
+                type="email"
+                id="otp-email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={e => { setEmail(e.target.value); setEmailError('') }}
+                className={emailError ? 'input-error' : ''}
+                disabled={sending}
               />
-              {error && <p className="error-message">{error}</p>}
+              {emailError && <p className="error-message">{emailError}</p>}
             </div>
 
-            <div className="otp-timer">
-              {timer > 0 ? (
-                <>
-                  <p>Resend OTP in <strong>{timer}</strong>s</p>
-                </>
-              ) : (
-                <button onClick={handleResendOTP} className="btn-resend">
-                  🔄 Resend OTP
-                </button>
-              )}
-            </div>
+            {sendStatus === 'error' && (
+              <p className="error-message">
+                ⚠️ Failed to send email. Check your EmailJS Public Key or try again.
+              </p>
+            )}
 
             <div className="otp-actions">
-              <button onClick={handleVerifyOTP} className="btn-primary">
-                ✅ Verify OTP
+              <button
+                onClick={handleSendOTP}
+                className="btn-primary"
+                disabled={sending}
+              >
+                {sending ? '📤 Sending…' : '📧 Send OTP'}
               </button>
               <button onClick={onCancel} className="btn-secondary">
                 ❌ Cancel
@@ -116,10 +168,68 @@ export default function OTPVerification({ onSuccess, onCancel, action }) {
           </div>
         )}
 
-        <div className="demo-info">
-          <p>💡 <strong>Demo Mode:</strong> Check browser console for the OTP</p>
-        </div>
+        {/* Step 2 – Enter OTP */}
+        {step === 'otp' && (
+          <div className="otp-step">
+            <p className="info-text">
+              A 6-digit code was sent to <strong>{email}</strong>.{' '}
+              <button
+                className="link-btn"
+                onClick={() => { setStep('email'); setSendStatus('') }}
+              >
+                Change email
+              </button>
+            </p>
+
+            <div className="form-group">
+              <label htmlFor="otp-code">Enter OTP</label>
+              <input
+                type="text"
+                id="otp-code"
+                maxLength="6"
+                placeholder="000000"
+                value={otp}
+                onChange={e => {
+                  setOtp(e.target.value.replace(/\D/g, ''))
+                  setOtpError('')
+                }}
+                className={otpError ? 'input-error' : ''}
+              />
+              {otpError && <p className="error-message">{otpError}</p>}
+            </div>
+
+            <div className="otp-timer">
+              {timer > 0 ? (
+                <p>Resend available in <strong>{timer}s</strong></p>
+              ) : (
+                <button
+                  onClick={handleResendOTP}
+                  className="btn-resend"
+                  disabled={sending}
+                >
+                  {sending ? '📤 Resending…' : '🔄 Resend OTP'}
+                </button>
+              )}
+            </div>
+
+            {sendStatus === 'error' && (
+              <p className="error-message">⚠️ Failed to resend email. Please try again.</p>
+            )}
+
+            <div className="otp-actions">
+              <button onClick={handleVerifyOTP} className="btn-primary">
+                ✅ Verify
+              </button>
+              <button onClick={onCancel} className="btn-secondary">
+                ❌ Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   )
 }
+
+            

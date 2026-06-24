@@ -186,3 +186,20 @@
     flex-direction: column;
   }
 }
+
+/* Inline "Change email" link inside OTP step */
+.link-btn {
+  background: none;
+  border: none;
+  color: #667eea;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  display: inline;
+}
+
+.link-btn:hover {
+  color: #5568d3;
+}
